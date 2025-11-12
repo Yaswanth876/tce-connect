@@ -1,31 +1,96 @@
+import { useState, useEffect } from "react";
 import { Calendar, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { BottomNav } from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-
-const registeredEvents = [
-  {
-    title: "AI Sprint Workshop",
-    date: "Jun 2-13, 2025",
-  },
-  {
-    title: "Field Visit - AR/VR",
-    date: "Jun 13-14, 2025",
-  },
-  {
-    title: "Connexions - IoT Workshop",
-    date: "May 9, 2025",
-  },
-];
-
-const myClubs = [
-  { name: "AI Consortium", icon: "🤖" },
-  { name: "App Development Club", icon: "📱" },
-];
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Profile = () => {
+  const [user, setUser] = useState<any>(null);
+  const [registeredEvents, setRegisteredEvents] = useState<any[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("tce_token");
+    if (!token) return;
+    setIsLoading(true);
+    
+    // Fetch user profile
+    fetch("http://localhost:5000/api/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setUser(data);
+        setName(data.name);
+        setEmail(data.email);
+      })
+      .catch(() => {
+        toast.error("Failed to load profile", {
+          description: "Please try refreshing the page.",
+        });
+      });
+    
+    // Fetch registered events
+    fetch("http://localhost:5000/api/users/me/events", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setRegisteredEvents(data);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        toast.error("Failed to load events", {
+          description: "Please try refreshing the page.",
+        });
+        setIsLoading(false);
+      });
+  }, []);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const token = localStorage.getItem("tce_token");
+    
+    try {
+      const response = await fetch("http://localhost:5000/api/users/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, email }),
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Update failed");
+      }
+      
+      setUser(data);
+      toast.success("Profile updated successfully!", {
+        description: "Your changes have been saved.",
+      });
+      setIsLoading(false);
+    } catch (err: any) {
+      toast.error("Failed to update profile", {
+        description: err.message || "Please try again.",
+      });
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) return <div className="p-8 text-center">Loading...</div>;
+  if (!user) return <div className="p-8 text-center">Not logged in</div>;
+
   return (
     <div className="flex flex-col min-h-screen bg-background page-transition">
       <Navbar />
@@ -37,7 +102,7 @@ const Profile = () => {
               👨‍🎓
             </div>
             <div className="animate-slide-up">
-              <h1 className="text-xl font-bold">Rajesh Kumar</h1>
+              <h1 className="text-xl font-bold">{user.name}</h1>
               <p className="text-sm opacity-90">B.E. Computer Science & Engineering</p>
               <p className="text-xs opacity-75 mt-1">III Year | Roll No: 21CS045 | TCE Madurai</p>
             </div>
@@ -45,45 +110,66 @@ const Profile = () => {
         </header>
 
         <div className="max-w-5xl mx-auto px-4 lg:px-6 py-6 space-y-6">
-          {/* My Registered Events */}
+          {/* Profile Form */}
           <section className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-lg font-semibold mb-3 gradient-text">📅 My Registered Events</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {registeredEvents.map((event, index) => (
-                <Card key={index} className="p-4 hover:shadow-card-hover transition-all duration-200 animate-scale-in group" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="font-semibold group-hover:text-primary transition-colors">{event.title}</h3>
-                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 text-accent" />
-                        <span>{event.date}</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full hover:bg-primary hover:text-primary-foreground transition-all">
-                      View Details
-                    </Button>
+            <Card className="shadow-2xl border-primary/10">
+              <div className="p-6">
+                <h2 className="text-xl font-bold mb-4">Profile</h2>
+                <form onSubmit={handleUpdate} className="space-y-4">
+                  <div>
+                    <label htmlFor="name">Name</label>
+                    <Input id="name" value={name} onChange={e => setName(e.target.value)} required />
                   </div>
-                </Card>
-              ))}
-            </div>
+                  <div>
+                    <label htmlFor="email">Email</label>
+                    <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Updating..." : "Update Profile"}
+                  </Button>
+                </form>
+              </div>
+            </Card>
           </section>
 
-          {/* My Clubs */}
+          {/* Registered Events */}
           <section className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <h2 className="text-lg font-semibold mb-3 gradient-text">🎭 My Clubs</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {myClubs.map((club, index) => (
-                <Card key={index} className="p-4 hover:shadow-card-hover transition-all duration-200 cursor-pointer animate-scale-in hover:scale-105 group" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <div className="text-3xl group-hover:scale-110 transition-transform">{club.icon}</div>
-                    <h3 className="font-semibold group-hover:text-primary transition-colors">{club.name}</h3>
-                    <Button variant="ghost" size="sm" className="w-full hover:bg-primary/10 transition-all">
-                      Open
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                My Registered Events
+              </h2>
+              {registeredEvents.length > 0 ? (
+                <div className="space-y-3">
+                  {registeredEvents.map((event) => (
+                    <div
+                      key={event._id}
+                      className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer hover:border-primary"
+                      onClick={() => navigate(`/events/${event._id}`)}
+                    >
+                      <h3 className="font-semibold">{event.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.date).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                      {event.description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {event.description.substring(0, 100)}...
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  You haven't registered for any events yet.
+                </p>
+              )}
+            </Card>
           </section>
 
           {/* Logout */}

@@ -1,7 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 const app = express();
+
+// CORS configuration to allow frontend requests
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'],
+  credentials: true
+}));
 
 app.use(express.json());
 
@@ -26,6 +33,10 @@ app.use('/api/users', userRoutes);
 // Event routes
 const eventRoutes = require('./routes/event');
 app.use('/api/events', eventRoutes);
+
+// Club routes
+const clubRoutes = require('./routes/club');
+app.use('/api/clubs', clubRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

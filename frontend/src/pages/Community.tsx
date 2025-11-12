@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ClubCard } from "@/components/ClubCard";
 import { BottomNav } from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
@@ -93,13 +92,6 @@ const allClubs = [
 ];
 
 const Community = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredClubs = allClubs.filter((club) =>
-    club.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    club.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <div className="flex flex-col min-h-screen bg-background page-transition">
       <Navbar />
@@ -138,9 +130,9 @@ const Community = () => {
           </div>
 
         {/* Clubs List with staggered animations */}
-          {filteredClubs.length > 0 ? (
+          {allClubs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredClubs.map((club, index) => (
+              {allClubs.map((club, index) => (
                 <div 
                   key={index}
                   className="animate-slide-up opacity-0"

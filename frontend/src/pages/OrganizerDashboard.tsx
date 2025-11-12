@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -8,35 +8,238 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Users, Plus, Edit, Trash2, BarChart3 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function OrganizerDashboard() {
   const navigate = useNavigate();
   const userEmail = localStorage.getItem("tce_user_email");
+  const token = localStorage.getItem("tce_token");
   const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showEditEvent, setShowEditEvent] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Form states
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
+  const [venue, setVenue] = useState("");
+  const [department, setDepartment] = useState("");
+  const [type, setType] = useState("technical");
+  const [registrationLink, setRegistrationLink] = useState("");
 
-  // Mock data for organizer's events
-  const [events] = useState([
-    {
-      id: 1,
-      title: "Tech Workshop",
-      date: "2025-11-15",
-      registrations: 45,
-      status: "Active"
-    },
-    {
-      id: 2,
-      title: "Coding Hackathon",
-      date: "2025-11-20",
-      registrations: 78,
-      status: "Active"
-    }
-  ]);
+  // Fetch organizer's events
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    fetch("http://localhost:5000/api/events", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        // Filter events where current user is organizer
+        const userId = localStorage.getItem("tce_user_id");
+        const myEvents = data.filter((event: any) => 
+          event.organizer?._id === userId || event.organizer === userId
+        );
+        setEvents(myEvents);
+        setLoading(false);
+      })
+      .catch((err) => {
+        toast.error("Failed to load events", {
+          description: err.message || "Please try refreshing the page.",
+        });
+        setLoading(false);
+      });
+  }, [token]);
 
-  const handleCreateEvent = (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle event creation logic here
+    if (!token) {
+      toast.error("Authentication required", {
+        description: "Please login to create events.",
+      });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const response = await fetch("http://localhost:5000/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          title, 
+          description, 
+          date, 
+          venue,
+          department,
+          type,
+          registrationLink 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create event");
+      }
+
+      // Clear form and refresh events
+      setTitle("");
+      setDescription("");
+      setDate("");
+      setVenue("");
+      setDepartment("");
+      setType("technical");
+      setRegistrationLink("");
+      setShowCreateEvent(false);
+      
+      // Show success toast
+      toast.success("Event created successfully!", {
+        description: `${title} has been created.`,
+      });
+      
+      // Refresh events list
+      const eventsRes = await fetch("http://localhost:5000/api/events", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const eventsData = await eventsRes.json();
+      const userId = localStorage.getItem("tce_user_id");
+      const myEvents = eventsData.filter((event: any) => 
+        event.organizer?._id === userId || event.organizer === userId
+      );
+      setEvents(myEvents);
+    } catch (err: any) {
+      toast.error("Failed to create event", {
+        description: err.message || "Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !editingEvent) return;
+    
+    setLoading(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/events/${editingEvent._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          title, 
+          description, 
+          date, 
+          venue,
+          department,
+          type,
+          registrationLink 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update event");
+      }
+
+      // Clear form and refresh events
+      setTitle("");
+      setDescription("");
+      setDate("");
+      setVenue("");
+      setDepartment("");
+      setType("technical");
+      setRegistrationLink("");
+      setShowEditEvent(false);
+      setEditingEvent(null);
+      
+      // Show success toast
+      toast.success("Event updated successfully!", {
+        description: "Your changes have been saved.",
+      });
+      
+      // Refresh events list
+      const eventsRes = await fetch("http://localhost:5000/api/events", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const eventsData = await eventsRes.json();
+      const userId = localStorage.getItem("tce_user_id");
+      const myEvents = eventsData.filter((event: any) => 
+        event.organizer?._id === userId || event.organizer === userId
+      );
+      setEvents(myEvents);
+    } catch (err: any) {
+      toast.error("Failed to update event", {
+        description: err.message || "Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!token) return;
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+    
+    setLoading(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/events/${eventId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete event");
+      }
+
+      // Remove event from list
+      setEvents(events.filter(event => event._id !== eventId));
+      
+      // Show success toast
+      toast.success("Event deleted successfully", {
+        description: "The event has been removed.",
+      });
+    } catch (err: any) {
+      toast.error("Failed to delete event", {
+        description: err.message || "Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditForm = (event: any) => {
+    setEditingEvent(event);
+    setTitle(event.title);
+    setDescription(event.description);
+    setDate(event.date.split('T')[0]); // Format date for input
+    setVenue(event.venue || "");
+    setDepartment(event.department || "");
+    setType(event.type || "technical");
+    setRegistrationLink(event.registrationLink || "");
+    setShowEditEvent(true);
     setShowCreateEvent(false);
   };
+
+  const calculateStats = () => {
+    const activeEvents = events.filter(e => new Date(e.date) >= new Date()).length;
+    const pastEvents = events.filter(e => new Date(e.date) < new Date()).length;
+    const totalRegistrations = events.reduce((sum, e) => sum + (e.participants?.length || 0), 0);
+    return { activeEvents, pastEvents, totalRegistrations };
+  };
+
+  const stats = calculateStats();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -57,15 +260,22 @@ export default function OrganizerDashboard() {
 
         {/* Dashboard Content */}
         <div className="max-w-6xl mx-auto px-4 lg:px-6 py-6 space-y-6">
+          {/* Loading State */}
+          {loading && (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground">Loading...</p>
+            </div>
+          )}
+
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{events.length}</p>
+                  <p className="text-2xl font-bold">{stats.activeEvents}</p>
                   <p className="text-sm text-muted-foreground">Active Events</p>
                 </div>
               </div>
@@ -77,9 +287,7 @@ export default function OrganizerDashboard() {
                   <Users className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    {events.reduce((sum, event) => sum + event.registrations, 0)}
-                  </p>
+                  <p className="text-2xl font-bold">{stats.totalRegistrations}</p>
                   <p className="text-sm text-muted-foreground">Total Registrations</p>
                 </div>
               </div>
@@ -91,20 +299,8 @@ export default function OrganizerDashboard() {
                   <Calendar className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">8</p>
+                  <p className="text-2xl font-bold">{stats.pastEvents}</p>
                   <p className="text-sm text-muted-foreground">Past Events</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">95%</p>
-                  <p className="text-sm text-muted-foreground">Success Rate</p>
                 </div>
               </div>
             </Card>
@@ -132,6 +328,8 @@ export default function OrganizerDashboard() {
                   <Input
                     id="eventTitle"
                     placeholder="Enter event title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     required
                   />
                 </div>
@@ -141,8 +339,59 @@ export default function OrganizerDashboard() {
                   <Input
                     id="eventDate"
                     type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eventVenue">Venue</Label>
+                  <Input
+                    id="eventVenue"
+                    placeholder="Enter venue location"
+                    value={venue}
+                    onChange={(e) => setVenue(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eventDepartment">Department</Label>
+                  <Input
+                    id="eventDepartment"
+                    placeholder="e.g., Computer Science, Cultural Committee"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="eventType">Event Type</Label>
+                  <select
+                    id="eventType"
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full h-10 border border-border rounded-md px-3 bg-background"
+                  >
+                    <option value="technical">Technical</option>
+                    <option value="cultural">Cultural</option>
+                    <option value="sports">Sports</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="registrationLink">Registration Link (Google Form)</Label>
+                  <Input
+                    id="registrationLink"
+                    type="url"
+                    placeholder="https://forms.gle/..."
+                    value={registrationLink}
+                    onChange={(e) => setRegistrationLink(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Add a Google Form link for student registration
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -151,28 +400,144 @@ export default function OrganizerDashboard() {
                     id="eventDescription"
                     placeholder="Enter event description"
                     rows={4}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="eventCapacity">Max Capacity</Label>
-                  <Input
-                    id="eventCapacity"
-                    type="number"
-                    placeholder="Enter maximum number of participants"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     required
                   />
                 </div>
 
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
-                    Create Event
+                  <Button type="submit" className="flex-1" disabled={loading}>
+                    {loading ? "Creating..." : "Create Event"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowCreateEvent(false)}
+                    onClick={() => {
+                      setShowCreateEvent(false);
+                      setTitle("");
+                      setDescription("");
+                      setDate("");
+                      setVenue("");
+                      setDepartment("");
+                      setType("technical");
+                      setRegistrationLink("");
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          )}
+
+          {/* Edit Event Form */}
+          {showEditEvent && editingEvent && (
+            <Card className="p-6 animate-slide-up">
+              <h3 className="text-lg font-semibold mb-4">Edit Event</h3>
+              <form onSubmit={handleEditEvent} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editEventTitle">Event Title</Label>
+                  <Input
+                    id="editEventTitle"
+                    placeholder="Enter event title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventDate">Event Date</Label>
+                  <Input
+                    id="editEventDate"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventVenue">Venue</Label>
+                  <Input
+                    id="editEventVenue"
+                    placeholder="Enter venue location"
+                    value={venue}
+                    onChange={(e) => setVenue(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventDepartment">Department</Label>
+                  <Input
+                    id="editEventDepartment"
+                    placeholder="e.g., Computer Science, Cultural Committee"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventType">Event Type</Label>
+                  <select
+                    id="editEventType"
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full h-10 border border-border rounded-md px-3 bg-background"
+                  >
+                    <option value="technical">Technical</option>
+                    <option value="cultural">Cultural</option>
+                    <option value="sports">Sports</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editRegistrationLink">Registration Link (Google Form)</Label>
+                  <Input
+                    id="editRegistrationLink"
+                    type="url"
+                    placeholder="https://forms.gle/..."
+                    value={registrationLink}
+                    onChange={(e) => setRegistrationLink(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional: Add a Google Form link for student registration
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventDescription">Description</Label>
+                  <Textarea
+                    id="editEventDescription"
+                    placeholder="Enter event description"
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1" disabled={loading}>
+                    {loading ? "Updating..." : "Update Event"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditEvent(false);
+                      setEditingEvent(null);
+                      setTitle("");
+                      setDescription("");
+                      setDate("");
+                      setVenue("");
+                      setDepartment("");
+                      setType("technical");
+                      setRegistrationLink("");
+                    }}
                     className="flex-1"
                   >
                     Cancel
@@ -184,36 +549,68 @@ export default function OrganizerDashboard() {
 
           {/* Events List */}
           <div className="grid grid-cols-1 gap-4">
-            {events.map((event) => (
-              <Card key={event.id} className="p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-2">{event.title}</h3>
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(event.date).toLocaleDateString()}
+            {events.map((event) => {
+              const isPastEvent = new Date(event.date) < new Date();
+              const participantCount = event.participants?.length || 0;
+              
+              return (
+                <Card key={event._id} className="p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold mb-2">{event.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {event.description}
+                      </p>
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(event.date).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {participantCount} {participantCount === 1 ? 'registration' : 'registrations'}
+                        </div>
+                        {event.venue && (
+                          <div className="text-xs">
+                            📍 {event.venue}
+                          </div>
+                        )}
+                        <span 
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            isPastEvent 
+                              ? 'bg-gray-100 text-gray-700' 
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                        >
+                          {isPastEvent ? 'Past' : 'Active'}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {event.registrations} registrations
-                      </div>
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                        {event.status}
-                      </span>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => openEditForm(event)}
+                        disabled={loading}
+                        title="Edit event"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleDeleteEvent(event._id)}
+                        disabled={loading}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Delete event"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
 
           {events.length === 0 && (

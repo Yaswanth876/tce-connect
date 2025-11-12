@@ -11,6 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { clearAuth, getUserRole } from "@/lib/auth";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
@@ -58,12 +60,11 @@ export const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("tce_isAuthenticated");
-    localStorage.removeItem("tce_user_email");
-    localStorage.removeItem("tce_user_role");
+    clearAuth();
     
-    // Dispatch storage event to notify other components
-    window.dispatchEvent(new Event("storage"));
+    toast.success("Logged out successfully", {
+      description: "See you again soon!",
+    });
     
     setIsAuthenticated(false);
     setMobileMenuOpen(false);
@@ -72,7 +73,8 @@ export const Navbar = () => {
 
   const handleDashboard = () => {
     setMobileMenuOpen(false);
-    if (userRole === "student") {
+    const role = getUserRole();
+    if (role === "student") {
       navigate("/student-dashboard");
     } else if (userRole === "organizer") {
       navigate("/organizer-dashboard");

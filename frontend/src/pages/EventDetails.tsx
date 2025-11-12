@@ -16,6 +16,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 // Mock event data - matching all events from Events page
 const mockEvents = [
@@ -600,48 +601,137 @@ export default function EventDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  const [event, setEvent] = useState<any>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
 
-  // Find event from mock data
-  const event = mockEvents.find((e) => e.id === id);
-
-  // Check registration status from localStorage
+  // Fetch event from API
   useEffect(() => {
-    const registrations = JSON.parse(
-      localStorage.getItem("tce_registrations") || "[]"
-    );
-    setIsRegistered(registrations.includes(id));
+    setLoading(true);
+    fetch(`http://localhost:5000/api/events/${id}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Event not found (Status: ${res.status})`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        // Format the event data
+        const formattedEvent = {
+          ...data,
+          id: data._id,
+          date: data.date ? new Date(data.date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }) : 'TBA',
+          time: data.date ? new Date(data.date).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : 'TBA',
+          category: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'General',
+          organizer: data.organizer?.name || data.organizer?.email || 'TCE Administration',
+          maxParticipants: data.maxParticipants || 100,
+          registered: data.participants?.length || 0,
+          highlights: data.highlights || [],
+          requirements: data.requirements || [],
+          image: data.image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800'
+        };
+        
+        setEvent(formattedEvent);
+        
+        // Check if user is registered
+        const token = localStorage.getItem("tce_token");
+        const userId = localStorage.getItem("tce_user_id");
+        if (token && userId && data.participants) {
+          setIsRegistered(data.participants.some((p: any) => p._id === userId || p === userId));
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading event:", err);
+        toast.error("Failed to load event", {
+          description: err.message || "Please check if the backend is running and try again.",
+        });
+        setLoading(false);
+      });
   }, [id]);
 
-  const handleRegister = () => {
-    const isAuthenticated = localStorage.getItem("tce_isAuthenticated") === "true";
+  const handleRegister = async () => {
+    const token = localStorage.getItem("tce_token");
     
-    if (!isAuthenticated) {
+    if (!token) {
+      toast.error("Authentication required", {
+        description: "Please login to register for events.",
+      });
       navigate("/login");
       return;
     }
 
-    if (isRegistered) {
-      // Cancel registration
-      const registrations = JSON.parse(
-        localStorage.getItem("tce_registrations") || "[]"
-      );
-      const updatedRegistrations = registrations.filter((regId: string) => regId !== id);
-      localStorage.setItem("tce_registrations", JSON.stringify(updatedRegistrations));
-      setIsRegistered(false);
-    } else {
-      // Register for event
-      const registrations = JSON.parse(
-        localStorage.getItem("tce_registrations") || "[]"
-      );
-      registrations.push(id);
-      localStorage.setItem("tce_registrations", JSON.stringify(registrations));
-      setIsRegistered(true);
+    // If event has a registration link (Google Form), redirect to it
+    if (event?.registrationLink && !isRegistered) {
+      window.open(event.registrationLink, '_blank');
+      toast.success("Opening registration form", {
+        description: "Please complete the Google Form to register.",
+      });
+      return;
+    }
+
+    setRegistering(true);
+
+    try {
+      const url = `http://localhost:5000/api/events/${id}/register`;
+      const method = isRegistered ? "DELETE" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Registration failed");
+      
+      setEvent(data);
+      setIsRegistered(!isRegistered);
+      
+      // Show success toast
+      if (isRegistered) {
+        toast.success("Registration cancelled", {
+          description: "You have been removed from this event.",
+        });
+      } else {
+        toast.success("Successfully registered!", {
+          description: "You're now registered for this event.",
+        });
+      }
+      
+      setRegistering(false);
+    } catch (err: any) {
+      toast.error(isRegistered ? "Failed to cancel registration" : "Failed to register", {
+        description: err.message || "Please try again.",
+      });
+      setRegistering(false);
     }
   };
 
-  // If event not found, show error
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <p>Loading event...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Event not found
   if (!event) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
@@ -667,7 +757,9 @@ export default function EventDetails() {
     }
   };
 
-  const progressPercentage = (event.registered / event.maxParticipants) * 100;
+  const participantCount = event.participants?.length || 0;
+  const maxParticipants = event.maxParticipants || 100;
+  const progressPercentage = (participantCount / maxParticipants) * 100;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -755,7 +847,7 @@ export default function EventDetails() {
                     <div className="flex-1">
                       <p className="font-medium">Participants</p>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {event.registered} / {event.maxParticipants} registered
+                        {participantCount} / {maxParticipants} registered
                       </p>
                       <div className="w-full bg-muted rounded-full h-2">
                         <div
@@ -825,8 +917,9 @@ export default function EventDetails() {
                       variant="outline"
                       className="w-full text-red-600 hover:text-red-700"
                       onClick={handleRegister}
+                      disabled={registering}
                     >
-                      Cancel Registration
+                      {registering ? "Processing..." : "Cancel Registration"}
                     </Button>
                   </div>
                 ) : (
@@ -835,7 +928,7 @@ export default function EventDetails() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Available Seats</span>
                         <span className="font-semibold">
-                          {event.maxParticipants - event.registered}
+                          {maxParticipants - participantCount}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
@@ -847,10 +940,14 @@ export default function EventDetails() {
                     <Button
                       className="w-full"
                       onClick={handleRegister}
-                      disabled={event.registered >= event.maxParticipants}
+                      disabled={participantCount >= maxParticipants || registering}
                     >
-                      {event.registered >= event.maxParticipants
+                      {registering
+                        ? "Processing..."
+                        : participantCount >= maxParticipants
                         ? "Event Full"
+                        : event?.registrationLink 
+                        ? "Register via Google Form →"
                         : "Register Now"}
                     </Button>
 

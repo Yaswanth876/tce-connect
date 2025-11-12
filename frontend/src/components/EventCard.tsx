@@ -10,7 +10,7 @@ interface EventCardProps {
   date: string;
   venue: string;
   department: string;
-  type: "technical" | "cultural" | "sports";
+  type?: "technical" | "cultural" | "sports";
   horizontal?: boolean;
 }
 
@@ -20,7 +20,7 @@ export const EventCard = ({
   date,
   venue,
   department,
-  type,
+  type = "technical",
   horizontal = false,
 }: EventCardProps) => {
   const navigate = useNavigate();
@@ -55,10 +55,10 @@ export const EventCard = ({
         <div className="space-y-3">
           <div className={cn(
             "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium",
-            typeColors[type]
+            typeColors[type || "technical"]
           )}>
             <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-            {type.charAt(0).toUpperCase() + type.slice(1)}
+            {type ? type.charAt(0).toUpperCase() + type.slice(1) : "Technical"}
           </div>
           <h3 className="font-semibold text-base group-hover:text-primary transition-colors leading-tight">
             {title}
@@ -96,7 +96,7 @@ export const EventCard = ({
       )}
       onClick={handleCardClick}
     >
-      <div className={cn("h-2 bg-gradient-to-r", typeGradients[type])}></div>
+      <div className={cn("h-2 bg-gradient-to-r", typeGradients[type || "technical"])}></div>
       <div className="p-5 space-y-4 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-base group-hover:text-primary transition-colors leading-tight line-clamp-2 min-h-[3rem]">
@@ -105,10 +105,10 @@ export const EventCard = ({
           <span
             className={cn(
               "text-xs px-2 py-1 rounded-full border font-medium whitespace-nowrap shrink-0",
-              typeColors[type]
+              typeColors[type || "technical"]
             )}
           >
-            {type.charAt(0).toUpperCase() + type.slice(1)}
+            {type ? type.charAt(0).toUpperCase() + type.slice(1) : "Technical"}
           </span>
         </div>
 

@@ -33,9 +33,12 @@ export default function OrganizerDashboard() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [venue, setVenue] = useState("");
   const [department, setDepartment] = useState("");
   const [type, setType] = useState("technical");
+  const [club, setClub] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("100");
 
   // Fetch organizer's events
   useEffect(() => {
@@ -83,10 +86,13 @@ export default function OrganizerDashboard() {
         body: JSON.stringify({ 
           title, 
           description, 
-          date, 
+          date,
+          time,
           venue,
           department,
-          type
+          type,
+          club,
+          maxParticipants: parseInt(maxParticipants) || 100
         })
       });
 
@@ -99,9 +105,12 @@ export default function OrganizerDashboard() {
       setTitle("");
       setDescription("");
       setDate("");
+      setTime("");
       setVenue("");
       setDepartment("");
       setType("technical");
+      setClub("");
+      setMaxParticipants("100");
       setShowCreateEvent(false);
       
       // Show success toast
@@ -144,10 +153,13 @@ export default function OrganizerDashboard() {
         body: JSON.stringify({ 
           title, 
           description, 
-          date, 
+          date,
+          time,
           venue,
           department,
-          type
+          type,
+          club,
+          maxParticipants: parseInt(maxParticipants) || 100
         })
       });
 
@@ -160,9 +172,12 @@ export default function OrganizerDashboard() {
       setTitle("");
       setDescription("");
       setDate("");
+      setTime("");
       setVenue("");
       setDepartment("");
       setType("technical");
+      setClub("");
+      setMaxParticipants("100");
       setShowEditEvent(false);
       setEditingEvent(null);
       
@@ -228,9 +243,12 @@ export default function OrganizerDashboard() {
     setTitle(event.title);
     setDescription(event.description);
     setDate(event.date.split('T')[0]); // Format date for input
+    setTime(event.time || "");
     setVenue(event.venue || "");
     setDepartment(event.department || "");
     setType(event.type || "technical");
+    setClub(event.club || "");
+    setMaxParticipants(event.maxParticipants?.toString() || "100");
     setShowEditEvent(true);
     setShowCreateEvent(false);
   };
@@ -354,6 +372,17 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="eventTime">Event Time</Label>
+                  <Input
+                    id="eventTime"
+                    type="time"
+                    placeholder="e.g., 10:00 AM"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="eventVenue">Venue</Label>
                   <Input
                     id="eventVenue"
@@ -389,6 +418,28 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="eventClub">Club/Organization</Label>
+                  <Input
+                    id="eventClub"
+                    placeholder="e.g., Coding Club, Dance Club"
+                    value={club}
+                    onChange={(e) => setClub(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maxParticipants">Maximum Participants</Label>
+                  <Input
+                    id="maxParticipants"
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 100"
+                    value={maxParticipants}
+                    onChange={(e) => setMaxParticipants(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="eventDescription">Description</Label>
                   <Textarea
                     id="eventDescription"
@@ -412,9 +463,12 @@ export default function OrganizerDashboard() {
                       setTitle("");
                       setDescription("");
                       setDate("");
+                      setTime("");
                       setVenue("");
                       setDepartment("");
                       setType("technical");
+                      setClub("");
+                      setMaxParticipants("100");
                     }}
                     className="flex-1"
                   >
@@ -453,6 +507,16 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="editEventTime">Event Time</Label>
+                  <Input
+                    id="editEventTime"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="editEventVenue">Venue</Label>
                   <Input
                     id="editEventVenue"
@@ -485,6 +549,28 @@ export default function OrganizerDashboard() {
                     <option value="cultural">Cultural</option>
                     <option value="sports">Sports</option>
                   </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editEventClub">Club</Label>
+                  <Input
+                    id="editEventClub"
+                    placeholder="e.g., Coding Club"
+                    value={club}
+                    onChange={(e) => setClub(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editMaxParticipants">Maximum Participants</Label>
+                  <Input
+                    id="editMaxParticipants"
+                    type="number"
+                    min="1"
+                    placeholder="100"
+                    value={maxParticipants}
+                    onChange={(e) => setMaxParticipants(e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">

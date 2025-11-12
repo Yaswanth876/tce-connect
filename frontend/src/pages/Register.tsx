@@ -5,20 +5,26 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Building, Calendar, Hash } from "lucide-react";
 
 export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [department, setDepartment] = useState("");
+  const [year, setYear] = useState("");
+  const [registerNumber, setRegisterNumber] = useState("");
   const [role, setRole] = useState("student");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({ 
     name: "", 
     email: "", 
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    department: "",
+    year: "",
+    registerNumber: ""
   });
   const navigate = useNavigate();
 
@@ -28,7 +34,15 @@ export default function Register() {
   };
 
   const validateForm = (): boolean => {
-    const newErrors = { name: "", email: "", password: "", confirmPassword: "" };
+    const newErrors = { 
+      name: "", 
+      email: "", 
+      password: "", 
+      confirmPassword: "",
+      department: "",
+      year: "",
+      registerNumber: ""
+    };
     let isValid = true;
 
     if (!name || name.trim().length < 2) {
@@ -60,6 +74,23 @@ export default function Register() {
       isValid = false;
     }
 
+    if (role === "student") {
+      if (!department || department.trim().length < 2) {
+        newErrors.department = "Department is required for students";
+        isValid = false;
+      }
+
+      if (!year) {
+        newErrors.year = "Year of study is required for students";
+        isValid = false;
+      }
+
+      if (!registerNumber || registerNumber.trim().length < 2) {
+        newErrors.registerNumber = "Register number is required for students";
+        isValid = false;
+      }
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -68,7 +99,15 @@ export default function Register() {
     e.preventDefault();
     
     // Clear previous errors
-    setErrors({ name: "", email: "", password: "", confirmPassword: "" });
+    setErrors({ 
+      name: "", 
+      email: "", 
+      password: "", 
+      confirmPassword: "",
+      department: "",
+      year: "",
+      registerNumber: ""
+    });
     
     // Validate form
     if (!validateForm()) {
@@ -81,7 +120,15 @@ export default function Register() {
       const response = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role })
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          password, 
+          role,
+          department,
+          year,
+          registerNumber
+        })
       });
       const data = await response.json();
       
@@ -276,6 +323,103 @@ export default function Register() {
                   <option value="organizer">Event Organizer</option>
                 </select>
               </div>
+
+              {/* Student-specific fields */}
+              {role === "student" && (
+                <>
+                  {/* Department Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="department" className="text-sm font-medium">Department</Label>
+                    <div className="relative">
+                      <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="department" 
+                        placeholder="e.g., Computer Science & Engineering"
+                        value={department} 
+                        onChange={e => {
+                          setDepartment(e.target.value);
+                          setErrors(prev => ({ ...prev, department: "" }));
+                        }}
+                        className={`pl-10 h-11 transition-colors ${
+                          errors.department 
+                            ? "border-red-500 focus:border-red-500" 
+                            : "border-border focus:border-primary"
+                        }`}
+                        disabled={isLoading}
+                        aria-invalid={!!errors.department}
+                      />
+                    </div>
+                    {errors.department && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <span>⚠</span> {errors.department}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Year Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="year" className="text-sm font-medium">Year of Study</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <select 
+                        id="year" 
+                        value={year} 
+                        onChange={e => {
+                          setYear(e.target.value);
+                          setErrors(prev => ({ ...prev, year: "" }));
+                        }}
+                        className={`w-full h-11 border rounded-md px-3 pl-10 transition-colors disabled:opacity-50 ${
+                          errors.year 
+                            ? "border-red-500 focus:border-red-500" 
+                            : "border-border focus:border-primary"
+                        }`}
+                        disabled={isLoading}
+                        aria-invalid={!!errors.year}
+                      >
+                        <option value="">Select year</option>
+                        <option value="I">I Year</option>
+                        <option value="II">II Year</option>
+                        <option value="III">III Year</option>
+                        <option value="IV">IV Year</option>
+                      </select>
+                    </div>
+                    {errors.year && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <span>⚠</span> {errors.year}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Register Number Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="registerNumber" className="text-sm font-medium">Register Number</Label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="registerNumber" 
+                        placeholder="e.g., 21CS045"
+                        value={registerNumber} 
+                        onChange={e => {
+                          setRegisterNumber(e.target.value);
+                          setErrors(prev => ({ ...prev, registerNumber: "" }));
+                        }}
+                        className={`pl-10 h-11 transition-colors ${
+                          errors.registerNumber 
+                            ? "border-red-500 focus:border-red-500" 
+                            : "border-border focus:border-primary"
+                        }`}
+                        disabled={isLoading}
+                        aria-invalid={!!errors.registerNumber}
+                      />
+                    </div>
+                    {errors.registerNumber && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <span>⚠</span> {errors.registerNumber}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Submit Button */}
               <Button 

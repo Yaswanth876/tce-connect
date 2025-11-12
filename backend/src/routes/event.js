@@ -17,15 +17,18 @@ router.get('/', async (req, res) => {
 // Create new event (protected)
 router.post('/', authMiddleware, validateEvent, async (req, res) => {
   try {
-    const { title, description, date, venue, department, type } = req.body;
+    const { title, description, date, time, venue, department, type, club, maxParticipants } = req.body;
     const organizer = req.user.userId;
     const event = new Event({ 
       title, 
       description, 
-      date, 
+      date,
+      time: time || 'TBA',
       venue: venue || 'TBA',
       department: department || 'General',
       type: type || 'technical',
+      club: club || '',
+      maxParticipants: maxParticipants || 100,
       organizer 
     });
     await event.save();
@@ -49,10 +52,10 @@ router.get('/:id', validateEventId, async (req, res) => {
 // Update event (protected - organizer only)
 router.put('/:id', authMiddleware, validateEventId, validateEvent, isEventOwner, async (req, res) => {
   try {
-    const { title, description, date, venue, department, type } = req.body;
+    const { title, description, date, time, venue, department, type, club, maxParticipants } = req.body;
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      { title, description, date, venue, department, type },
+      { title, description, date, time, venue, department, type, club, maxParticipants },
       { new: true, runValidators: true }
     ).populate('organizer participants');
     
@@ -78,9 +81,19 @@ router.post('/:id/register', authMiddleware, validateEventId, async (req, res) =
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ error: 'Event not found' });
     
+    // Check if user is the organizer
+    if (event.organizer.toString() === req.user.userId) {
+      return res.status(403).json({ error: 'Organizers cannot register for their own events' });
+    }
+    
     // Check if user is already registered
     if (event.participants.includes(req.user.userId)) {
       return res.status(400).json({ error: 'Already registered for this event' });
+    }
+    
+    // Check if event is full
+    if (event.participants.length >= event.maxParticipants) {
+      return res.status(400).json({ error: 'Event is full' });
     }
     
     event.participants.push(req.user.userId);

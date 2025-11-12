@@ -5,10 +5,86 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings as SettingsIcon, Bell, Lock, User, Mail } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Lock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export default function Settings() {
-  const userEmail = localStorage.getItem("tce_user_email");
+  const [user, setUser] = useState<any>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("tce_token");
+    if (!token) return;
+    
+    // Fetch user profile
+    fetch("http://localhost:5000/api/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setUser(data);
+      })
+      .catch(() => {
+        toast.error("Failed to load profile", {
+          description: "Please try refreshing the page.",
+        });
+      });
+  }, []);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("All fields are required");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    const token = localStorage.getItem("tce_token");
+    
+    try {
+      const response = await fetch("http://localhost:5000/api/users/me/password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update password");
+      }
+      
+      toast.success("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  if (!user) return <div className="p-8 text-center">Loading...</div>;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -29,32 +105,36 @@ export default function Settings() {
 
         {/* Settings Content */}
         <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 space-y-6">
-          {/* Account Settings */}
+          {/* Account Information (Read-only) */}
           <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Account Settings
-            </h2>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={userEmail || ""}
-                  disabled
-                  className="bg-muted"
-                />
+            <h2 className="text-lg font-semibold mb-4">Account Information</h2>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Name</Label>
+                <p className="text-base">{user.name}</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Enter your full name"
-                />
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                <p className="text-base">{user.email}</p>
               </div>
-              <Button className="mt-4">Save Changes</Button>
+              {user.department && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Department</Label>
+                  <p className="text-base">{user.department}</p>
+                </div>
+              )}
+              {user.year && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Year</Label>
+                  <p className="text-base">{user.year} Year</p>
+                </div>
+              )}
+              {user.registerNumber && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Register Number</Label>
+                  <p className="text-base">{user.registerNumber}</p>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -64,13 +144,16 @@ export default function Settings() {
               <Lock className="h-5 w-5 text-primary" />
               Change Password
             </h2>
-            <div className="space-y-4">
+            <form onSubmit={handlePasswordChange} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
                 <Input
                   id="currentPassword"
                   type="password"
                   placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={isChangingPassword}
                 />
               </div>
               <div className="space-y-2">
@@ -78,7 +161,10 @@ export default function Settings() {
                 <Input
                   id="newPassword"
                   type="password"
-                  placeholder="Enter new password"
+                  placeholder="Enter new password (min 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isChangingPassword}
                 />
               </div>
               <div className="space-y-2">
@@ -87,10 +173,15 @@ export default function Settings() {
                   id="confirmPassword"
                   type="password"
                   placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isChangingPassword}
                 />
               </div>
-              <Button className="mt-4">Update Password</Button>
-            </div>
+              <Button type="submit" className="mt-4" disabled={isChangingPassword}>
+                {isChangingPassword ? "Updating..." : "Update Password"}
+              </Button>
+            </form>
           </Card>
 
           {/* Notification Settings */}

@@ -627,12 +627,11 @@ export default function EventDetails() {
             month: 'long',
             day: 'numeric'
           }) : 'TBA',
-          time: data.date ? new Date(data.date).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : 'TBA',
+          time: data.time || 'TBA',
           category: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'General',
           organizer: data.organizer?.name || data.organizer?.email || 'TCE Administration',
+          organizerId: data.organizer?._id || data.organizer,
+          club: data.club || '',
           maxParticipants: data.maxParticipants || 100,
           registered: data.participants?.length || 0,
           highlights: data.highlights || [],
@@ -695,12 +694,11 @@ export default function EventDetails() {
           month: 'long',
           day: 'numeric'
         }) : 'TBA',
-        time: data.date ? new Date(data.date).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : 'TBA',
+        time: data.time || 'TBA',
         category: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'General',
         organizer: data.organizer?.name || data.organizer?.email || 'TCE Administration',
+        organizerId: data.organizer?._id || data.organizer,
+        club: data.club || '',
         maxParticipants: data.maxParticipants || 100,
         registered: data.participants?.length || 0,
         highlights: data.highlights || [],
@@ -773,6 +771,10 @@ export default function EventDetails() {
   const participantCount = event.participants?.length || 0;
   const maxParticipants = event.maxParticipants || 100;
   const progressPercentage = (participantCount / maxParticipants) * 100;
+  
+  // Check if current user is the organizer
+  const userId = localStorage.getItem("tce_user_id");
+  const isOrganizer = event.organizerId === userId;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -855,6 +857,18 @@ export default function EventDetails() {
                     </div>
                   </div>
 
+                  {event.club && (
+                    <div className="flex items-start gap-3">
+                      <Users className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="font-medium">Club</p>
+                        <p className="text-sm text-muted-foreground">
+                          {event.club}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-3">
                     <Users className="h-5 w-5 text-primary mt-0.5" />
                     <div className="flex-1">
@@ -915,76 +929,105 @@ export default function EventDetails() {
             {/* Sidebar - Registration Card */}
             <div className="lg:col-span-1">
               <Card className="p-6 sticky top-20">
-                <h3 className="text-lg font-semibold mb-4">
-                  {isRegistered ? "You're Registered!" : "Register for Event"}
-                </h3>
-
-                {isRegistered ? (
+                {isOrganizer ? (
                   <div className="space-y-4">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                      <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
-                      <p className="text-green-800 font-medium">
-                        Registration Successful!
+                    <h3 className="text-lg font-semibold mb-4">Your Event</h3>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                      <CheckCircle className="h-12 w-12 text-blue-600 mx-auto mb-2" />
+                      <p className="text-blue-800 font-medium">
+                        You are the organizer
                       </p>
-                      <p className="text-sm text-green-600 mt-1">
-                        Check your email for confirmation
+                      <p className="text-sm text-blue-600 mt-1">
+                        Organizers cannot register for their own events
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      className="w-full text-red-600 hover:text-red-700"
-                      onClick={handleRegister}
-                      disabled={registering}
-                    >
-                      {registering ? "Processing..." : "Cancel Registration"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
                     <div className="bg-primary/5 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total Registrations</span>
+                        <span className="font-semibold">{participantCount}</span>
+                      </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Available Seats</span>
                         <span className="font-semibold">
                           {maxParticipants - participantCount}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Registration Fee</span>
-                        <span className="font-semibold text-green-600">Free</span>
-                      </div>
-                    </div>
-
-                    <Button
-                      className="w-full"
-                      onClick={handleRegister}
-                      disabled={participantCount >= maxParticipants || registering}
-                    >
-                      {registering
-                        ? "Processing..."
-                        : participantCount >= maxParticipants
-                        ? "Event Full"
-                        : "Register Now"}
-                    </Button>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setIsSaved(!isSaved)}
-                      >
-                        <Bookmark
-                          className={`h-4 w-4 mr-2 ${
-                            isSaved ? "fill-current" : ""
-                          }`}
-                        />
-                        {isSaved ? "Saved" : "Save"}
-                      </Button>
-                      <Button variant="outline" className="flex-1" onClick={handleShare}>
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
-                      </Button>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-semibold mb-4">
+                      {isRegistered ? "You're Registered!" : "Register for Event"}
+                    </h3>
+
+                    {isRegistered ? (
+                      <div className="space-y-4">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                          <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
+                          <p className="text-green-800 font-medium">
+                            Registration Successful!
+                          </p>
+                          <p className="text-sm text-green-600 mt-1">
+                            Check your email for confirmation
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full text-red-600 hover:text-red-700"
+                          onClick={handleRegister}
+                          disabled={registering}
+                        >
+                          {registering ? "Processing..." : "Cancel Registration"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-primary/5 rounded-lg p-4 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Available Seats</span>
+                            <span className="font-semibold">
+                              {maxParticipants - participantCount}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Registration Fee</span>
+                            <span className="font-semibold text-green-600">Free</span>
+                          </div>
+                        </div>
+
+                        <Button
+                          className="w-full"
+                          onClick={handleRegister}
+                          disabled={participantCount >= maxParticipants || registering}
+                        >
+                          {registering
+                            ? "Processing..."
+                            : participantCount >= maxParticipants
+                            ? "Event Full"
+                            : "Register Now"}
+                        </Button>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setIsSaved(!isSaved)}
+                          >
+                            <Bookmark
+                              className={`h-4 w-4 mr-2 ${
+                                isSaved ? "fill-current" : ""
+                              }`}
+                            />
+                            {isSaved ? "Saved" : "Save"}
+                          </Button>
+                          <Button variant="outline" className="flex-1" onClick={handleShare}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Share
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="mt-6 pt-6 border-t border-border">

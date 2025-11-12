@@ -11,7 +11,6 @@ const eventSchema = new mongoose.Schema({
     enum: ['technical', 'cultural', 'sports'], 
     default: 'technical' 
   },
-  registrationLink: { type: String }, // Google Form link for event registration
   organizer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });

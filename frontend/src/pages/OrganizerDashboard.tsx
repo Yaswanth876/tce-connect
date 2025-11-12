@@ -7,8 +7,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Users, Plus, Edit, Trash2, BarChart3 } from "lucide-react";
+import { Calendar, Users, Plus, Edit, Trash2, BarChart3, Eye, Mail, User } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function OrganizerDashboard() {
   const navigate = useNavigate();
@@ -16,6 +23,8 @@ export default function OrganizerDashboard() {
   const token = localStorage.getItem("tce_token");
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showEditEvent, setShowEditEvent] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +36,6 @@ export default function OrganizerDashboard() {
   const [venue, setVenue] = useState("");
   const [department, setDepartment] = useState("");
   const [type, setType] = useState("technical");
-  const [registrationLink, setRegistrationLink] = useState("");
 
   // Fetch organizer's events
   useEffect(() => {
@@ -78,8 +86,7 @@ export default function OrganizerDashboard() {
           date, 
           venue,
           department,
-          type,
-          registrationLink 
+          type
         })
       });
 
@@ -95,7 +102,6 @@ export default function OrganizerDashboard() {
       setVenue("");
       setDepartment("");
       setType("technical");
-      setRegistrationLink("");
       setShowCreateEvent(false);
       
       // Show success toast
@@ -141,8 +147,7 @@ export default function OrganizerDashboard() {
           date, 
           venue,
           department,
-          type,
-          registrationLink 
+          type
         })
       });
 
@@ -158,7 +163,6 @@ export default function OrganizerDashboard() {
       setVenue("");
       setDepartment("");
       setType("technical");
-      setRegistrationLink("");
       setShowEditEvent(false);
       setEditingEvent(null);
       
@@ -227,9 +231,13 @@ export default function OrganizerDashboard() {
     setVenue(event.venue || "");
     setDepartment(event.department || "");
     setType(event.type || "technical");
-    setRegistrationLink(event.registrationLink || "");
     setShowEditEvent(true);
     setShowCreateEvent(false);
+  };
+
+  const openParticipantsList = (event: any) => {
+    setSelectedEvent(event);
+    setShowParticipants(true);
   };
 
   const calculateStats = () => {
@@ -381,20 +389,6 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="registrationLink">Registration Link (Google Form)</Label>
-                  <Input
-                    id="registrationLink"
-                    type="url"
-                    placeholder="https://forms.gle/..."
-                    value={registrationLink}
-                    onChange={(e) => setRegistrationLink(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional: Add a Google Form link for student registration
-                  </p>
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="eventDescription">Description</Label>
                   <Textarea
                     id="eventDescription"
@@ -421,7 +415,6 @@ export default function OrganizerDashboard() {
                       setVenue("");
                       setDepartment("");
                       setType("technical");
-                      setRegistrationLink("");
                     }}
                     className="flex-1"
                   >
@@ -495,20 +488,6 @@ export default function OrganizerDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="editRegistrationLink">Registration Link (Google Form)</Label>
-                  <Input
-                    id="editRegistrationLink"
-                    type="url"
-                    placeholder="https://forms.gle/..."
-                    value={registrationLink}
-                    onChange={(e) => setRegistrationLink(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional: Add a Google Form link for student registration
-                  </p>
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="editEventDescription">Description</Label>
                   <Textarea
                     id="editEventDescription"
@@ -536,7 +515,6 @@ export default function OrganizerDashboard() {
                       setVenue("");
                       setDepartment("");
                       setType("technical");
-                      setRegistrationLink("");
                     }}
                     className="flex-1"
                   >
@@ -590,6 +568,16 @@ export default function OrganizerDashboard() {
                       <Button 
                         size="sm" 
                         variant="outline"
+                        onClick={() => openParticipantsList(event)}
+                        disabled={loading}
+                        title="View participants"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
                         onClick={() => openEditForm(event)}
                         disabled={loading}
                         title="Edit event"
@@ -628,6 +616,140 @@ export default function OrganizerDashboard() {
           )}
         </div>
       </div>
+
+      {/* Participants Dialog */}
+      <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Registered Participants</DialogTitle>
+            <DialogDescription>
+              {selectedEvent?.title} - {selectedEvent?.participants?.length || 0} {selectedEvent?.participants?.length === 1 ? 'participant' : 'participants'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-6 space-y-4">
+            {selectedEvent?.participants?.length > 0 ? (
+              <>
+                {/* Summary Stats */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <Card className="p-4 bg-blue-50">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {selectedEvent.participants.length}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 bg-green-50">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Event Date</p>
+                        <p className="text-sm font-semibold text-green-600">
+                          {new Date(selectedEvent.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card className="p-4 bg-purple-50">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Type</p>
+                        <p className="text-sm font-semibold text-purple-600 capitalize">
+                          {selectedEvent.type || 'General'}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Participants List */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-lg mb-3">Participant List</h4>
+                  {selectedEvent.participants.map((participant: any, index: number) => (
+                    <Card key={participant._id || index} className="p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <p className="font-semibold text-base">
+                                {participant.name || 'No name'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">
+                                {participant.email || 'No email'}
+                              </p>
+                            </div>
+                            {participant.role && (
+                              <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                {participant.role}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Export Options */}
+                <div className="mt-6 pt-6 border-t">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      // Create CSV content
+                      const csvContent = [
+                        ['No.', 'Name', 'Email', 'Role'],
+                        ...selectedEvent.participants.map((p: any, i: number) => [
+                          i + 1,
+                          p.name || '',
+                          p.email || '',
+                          p.role || ''
+                        ])
+                      ].map(row => row.join(',')).join('\n');
+                      
+                      // Download CSV
+                      const blob = new Blob([csvContent], { type: 'text/csv' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${selectedEvent.title.replace(/\s+/g, '_')}_participants.csv`;
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      
+                      toast.success("Participants list exported", {
+                        description: "CSV file has been downloaded.",
+                      });
+                    }}
+                  >
+                    Export to CSV
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="py-12 text-center">
+                <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-lg font-semibold mb-2">No Participants Yet</h3>
+                <p className="text-muted-foreground">
+                  No one has registered for this event yet.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );

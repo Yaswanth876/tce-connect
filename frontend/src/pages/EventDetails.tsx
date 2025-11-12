@@ -670,15 +670,6 @@ export default function EventDetails() {
       return;
     }
 
-    // If event has a registration link (Google Form), redirect to it
-    if (event?.registrationLink && !isRegistered) {
-      window.open(event.registrationLink, '_blank');
-      toast.success("Opening registration form", {
-        description: "Please complete the Google Form to register.",
-      });
-      return;
-    }
-
     setRegistering(true);
 
     try {
@@ -695,7 +686,29 @@ export default function EventDetails() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || data.error || "Registration failed");
       
-      setEvent(data);
+      // Format the event data the same way as initial fetch
+      const formattedEvent = {
+        ...data,
+        id: data._id,
+        date: data.date ? new Date(data.date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }) : 'TBA',
+        time: data.date ? new Date(data.date).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'TBA',
+        category: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'General',
+        organizer: data.organizer?.name || data.organizer?.email || 'TCE Administration',
+        maxParticipants: data.maxParticipants || 100,
+        registered: data.participants?.length || 0,
+        highlights: data.highlights || [],
+        requirements: data.requirements || [],
+        image: data.image || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800'
+      };
+      
+      setEvent(formattedEvent);
       setIsRegistered(!isRegistered);
       
       // Show success toast
@@ -869,30 +882,34 @@ export default function EventDetails() {
               </Card>
 
               {/* Highlights */}
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Event Highlights</h2>
-                <ul className="space-y-2">
-                  {event.highlights.map((highlight, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                      <span className="text-muted-foreground">{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+              {event?.highlights && event.highlights.length > 0 && (
+                <Card className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Event Highlights</h2>
+                  <ul className="space-y-2">
+                    {event.highlights.map((highlight, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                        <span className="text-muted-foreground">{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
 
               {/* Requirements */}
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Requirements</h2>
-                <ul className="space-y-2">
-                  {event.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
-                      <span className="text-muted-foreground">{requirement}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+              {event?.requirements && event.requirements.length > 0 && (
+                <Card className="p-6">
+                  <h2 className="text-xl font-semibold mb-4">Requirements</h2>
+                  <ul className="space-y-2">
+                    {event.requirements.map((requirement, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                        <span className="text-muted-foreground">{requirement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
             </div>
 
             {/* Sidebar - Registration Card */}
@@ -946,8 +963,6 @@ export default function EventDetails() {
                         ? "Processing..."
                         : participantCount >= maxParticipants
                         ? "Event Full"
-                        : event?.registrationLink 
-                        ? "Register via Google Form →"
                         : "Register Now"}
                     </Button>
 

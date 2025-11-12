@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
 // Create new event (protected)
 router.post('/', authMiddleware, validateEvent, async (req, res) => {
   try {
-    const { title, description, date, venue, department, type, registrationLink } = req.body;
+    const { title, description, date, venue, department, type } = req.body;
     const organizer = req.user.userId;
     const event = new Event({ 
       title, 
@@ -26,7 +26,6 @@ router.post('/', authMiddleware, validateEvent, async (req, res) => {
       venue: venue || 'TBA',
       department: department || 'General',
       type: type || 'technical',
-      registrationLink: registrationLink || '',
       organizer 
     });
     await event.save();
@@ -50,10 +49,10 @@ router.get('/:id', validateEventId, async (req, res) => {
 // Update event (protected - organizer only)
 router.put('/:id', authMiddleware, validateEventId, validateEvent, isEventOwner, async (req, res) => {
   try {
-    const { title, description, date, venue, department, type, registrationLink } = req.body;
+    const { title, description, date, venue, department, type } = req.body;
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      { title, description, date, venue, department, type, registrationLink },
+      { title, description, date, venue, department, type },
       { new: true, runValidators: true }
     ).populate('organizer participants');
     

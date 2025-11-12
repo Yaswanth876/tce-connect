@@ -172,7 +172,74 @@ npm run dev
 - [ ] Can create new events
 - [ ] Can edit existing events
 - [ ] Can delete events
+- [ ] Can view registered participants list
+- [ ] Participant details show correctly (name, email, role)
+- [ ] Can export participants to CSV
+- [ ] Registration count displays correctly
 - [ ] Toast notifications work for actions
+
+### Event Registration Testing
+
+#### Student Registration Flow
+1. **Login as Student**
+   - Navigate to `/login`
+   - Use student credentials
+   - Should redirect to student dashboard
+
+2. **Browse Events**
+   - Go to `/events` page
+   - Click on any event card
+   - Should show event details
+
+3. **Register for Event (Database Storage)**
+   - [ ] Click "Register" button on event details page
+   - [ ] Success toast appears
+   - [ ] Registration is stored in database
+   - [ ] Button changes to "Cancel Registration"
+   - [ ] Event appears in student dashboard
+
+4. **Register for Event (with Google Form)**
+   - [ ] If event has Google Form link, after DB registration:
+   - [ ] Google Form opens in new tab automatically
+   - [ ] Toast shows "Complete your registration"
+   - [ ] Student fills Google Form separately
+
+5. **Cancel Registration**
+   - [ ] Click "Cancel Registration" button
+   - [ ] Success toast appears
+   - [ ] Event removed from student dashboard
+   - [ ] Registration removed from database
+
+#### Organizer Registration Management
+1. **Create Event with Registration Options**
+   - Login as organizer
+   - Click "Create Event"
+   - [ ] Form includes all fields (title, description, date, venue, department, type)
+   - [ ] Registration Link field for Google Form (optional)
+   - [ ] Can save event without Google Form link
+   - [ ] Can save event with Google Form link
+
+2. **View Participants**
+   - [ ] Click "View Participants" (eye icon) on event card
+   - [ ] Dialog opens with participant list
+   - [ ] Shows total participant count
+   - [ ] Displays event date and type
+   - [ ] Each participant shows: number, name, email, role
+   - [ ] Empty state shows when no participants
+
+3. **Export Participants**
+   - [ ] Click "Export to CSV" button
+   - [ ] CSV file downloads automatically
+   - [ ] File named correctly (event_title_participants.csv)
+   - [ ] CSV contains: No., Name, Email, Role columns
+   - [ ] All participant data is included
+
+#### Database Verification
+- [ ] Participants array populated in Event model
+- [ ] User ObjectId stored in participants array
+- [ ] Population works (participant details retrieved)
+- [ ] Duplicate registration prevented
+- [ ] Registration removal works correctly
 
 #### Profile Page (`/profile`)
 - [ ] Shows user information
